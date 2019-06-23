@@ -37,8 +37,8 @@ varDecomp <- function(formula, weight, periods, data){
 
                 data[[indep_vars_i]] <- fct_relevel(data[[indep_vars_i]], categories)
 
-                #data[[indep_vars_i]] <- fct_anon(data[[indep_vars_i]]) #%>%
-                #z       as.numeric()
+                data[[indep_vars_i]] <- fct_anon(data[[indep_vars_i]]) %>%
+                        as.numeric()
         }
 
         data <- data %>%
