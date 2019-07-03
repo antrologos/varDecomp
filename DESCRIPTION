@@ -1,18 +1,20 @@
 Package: varDecomp
 Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
-Authors@R: 
+Authors@R: c(
     person(given = "Rogerio",
            family = "Barbosa",
            email = "first.last@example.com",
            role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID")),
+   person(given = "Benjamin",
+           family = "Elbers",
+           email = "first.last@example.com",
+           role = c("aut"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
+           )
 Depends: R (>= 3.4.4),
-         furrr,
-         dplyr,
-         tidyr,
          data.table,
-         forcats,
          stringr,
          shapley,
          glm2
