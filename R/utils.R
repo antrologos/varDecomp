@@ -123,10 +123,6 @@ counterfactual_p <- function(freqs,
                 t <- paste0("t_margin_", var)
                 s <- paste0("s_margin_", var)
                 ratio <- ipf[, list(first(get(s)), first(get(t))), by = var][, abs(log(V1 / V2))]
-                if (is.na(ratio)) {
-                    print(indep_vars)
-                    print(adjust_vars)
-                }
                 all(ratio <= precision)
             })
 
