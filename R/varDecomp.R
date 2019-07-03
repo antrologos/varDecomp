@@ -26,33 +26,35 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
         data2[[dep_var]] <- data2[, eval(formula[[2]])]
 
         # Removing incomplete cases
+        cases_before <- nrow(data1)
         data1 <- data1[stats::complete.cases(data1)]
         data1 <- data1[is.finite(data1[[dep_var]])]
+        cases_after <- nrow(data1)
+        if (cases_after < cases_before)
+            warning(paste0("Dropped ", cases_before - cases_after, " cases from data1"))
+        if (nrow(data1) == 0)
+            stop("data1 does not contain any rows")
 
+        cases_before <- nrow(data1)
         data2 <- data2[stats::complete.cases(data2)]
         data2 <- data2[is.finite(data2[[dep_var]])]
-
-        # TODO: have to make sure that both datasets have the same categories,
-        #       and that categories that are non-present in both datasets are dropped
+        cases_after <- nrow(data1)
+        if (cases_after < cases_before)
+            warning(paste0("Dropped ", cases_before - cases_after, " cases from data2"))
+        if (nrow(data2) == 0)
+            stop("data2 does not contain any rows")
 
         # # Removing empty categories
-        # for (indep_vars_i in indep_vars){
-        #         print(table(data1[[indep_vars_i]]))
-        #         print(table(data2[[indep_vars_i]]))
+        for (var in indep_vars) {
+                data1[[var]] <- droplevels(data1[[var]])
+                data2[[var]] <- droplevels(data2[[var]])
 
-        #         categories <- c(levels(data1[[indep_vars_i]]), levels(data2[[indep_vars_i]]))
-        #         categories <- unique(categories)
+                levels1 <- paste0(sort(levels(data1[[var]])), collapse = "|")
+                levels2 <- paste0(sort(levels(data2[[var]])), collapse = "|")
 
-        #         data1[[indep_vars_i]] <- factor(data1[[indep_vars_i]],
-        #                                        levels  = categories,
-        #                                        labels  = categories,
-        #                                        ordered = FALSE)
-
-        #         data[[indep_vars_i]] <- fct_relevel(data[[indep_vars_i]], categories)
-
-        #         data[[indep_vars_i]] <- fct_anon(data[[indep_vars_i]]) %>%
-        #                 as.numeric()
-        # }
+                if (levels1 != levels2)
+                    stop(paste0("factor levels are not identical in variable ", var))
+        }
 
         # Estimating the beta and lambda coefficients
         model1 <- get_parameters(data1, formula, weight)
@@ -64,6 +66,7 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
         # sort = FALSE is important here -- otherwise the coefficients no longer line up
         parameters <- merge(model1$parameter, model2$parameter, by = "coef", all = TRUE,
             sort = FALSE)
+        parameters[is.na(parameters)] <- 0
 
         # cell frequencies
         setnames(model1$freq, c("n", "p"), c("n1", "p1"))
