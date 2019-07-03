@@ -61,7 +61,9 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
         # parameters
         setnames(model1$parameter, c("beta", "lambda"), c("beta1", "lambda1"))
         setnames(model2$parameter, c("beta", "lambda"), c("beta2", "lambda2"))
-        parameters <- merge(model1$parameter, model2$parameter, by = "coef", all = TRUE)
+        # sort = FALSE is important here -- otherwise the coefficients no longer line up
+        parameters <- merge(model1$parameter, model2$parameter, by = "coef", all = TRUE,
+            sort = FALSE)
 
         # cell frequencies
         setnames(model1$freq, c("n", "p"), c("n1", "p1"))
@@ -96,11 +98,14 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
 
         between1 <- freqs[, sum((mu_group1 - mu1)^2 * p1)]
         within1 <- freqs[, sum(var1 * p1)]
-        estimated_variance1 <- between1 + within1
+        est_variance1 <- between1 + within1
 
         between2 <- freqs[, sum((mu_group2 - mu2)^2 * p2)]
         within2 <- freqs[, sum(var2 * p2)]
-        estimated_variance2 <- between2 + within2
+        est_variance2 <- between2 + within2
+
+        obs_variance1 <- var(data1[[dep_var]])
+        obs_variance2 <- var(data2[[dep_var]])
 
         #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
         # Counterfactual decomposition
@@ -110,7 +115,7 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
                                  factors_simple,
                                  freqs = freqs, silent = TRUE)
         stopifnot(all.equal(sum(decomposition_simple$value),
-            estimated_variance2 - estimated_variance1))
+            est_variance2 - est_variance1))
 
         factors <- list(
             mean = paste0("mean_", indep_vars),
@@ -133,9 +138,11 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
             decomposition_simple$value))
 
         list(static = data.table(dataset = c("1", "2", "diff"),
-                estimated_variance = c(estimated_variance1, estimated_variance2,
-                    estimated_variance2 - estimated_variance1),
-                between = c(between1, between2, between2 - between1),
-                within = c(within1, within2, within2 - within1)),
+                est_variance = c(est_variance1, est_variance2,
+                    est_variance2 - est_variance1),
+                est_between = c(between1, between2, between2 - between1),
+                est_within = c(within1, within2, within2 - within1),
+                obs_variance = c(obs_variance1, obs_variance2,
+                    obs_variance2 - obs_variance1)),
              dynamic = decomposition)
 }
