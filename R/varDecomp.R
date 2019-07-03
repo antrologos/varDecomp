@@ -49,8 +49,8 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
                 data1[[var]] <- droplevels(data1[[var]])
                 data2[[var]] <- droplevels(data2[[var]])
 
-                levels1 <- paste0(sort(levels(data1[[var]])), collapse = "|")
-                levels2 <- paste0(sort(levels(data2[[var]])), collapse = "|")
+                levels1 <- paste0(levels(data1[[var]]), collapse = "|")
+                levels2 <- paste0(levels(data2[[var]]), collapse = "|")
 
                 if (levels1 != levels2)
                     stop(paste0("factor levels are not identical in variable ", var))
