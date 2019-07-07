@@ -10,8 +10,8 @@
 #' @import shapley
 #' @export
 varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
-        setDT(data1)
-        setDT(data2)
+        data1 <- as.data.table(data1)
+        data2 <- as.data.table(data2)
 
         # make sure that weights are always in "weight"
         if (is.null(weight)) {
