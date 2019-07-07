@@ -4,7 +4,7 @@
 \alias{varDecomp}
 \title{Variance decomposition}
 \usage{
-varDecomp(data1, data2, formula, weight, ...)
+varDecomp(data1, data2, formula, weight = NULL, ...)
 }
 \arguments{
 \item{data1}{First dataset}
