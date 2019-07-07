@@ -1,11 +1,11 @@
 # Estimates beta and lambda coefficients
 #' @import glm2
-get_parameters <- function(data_i, formula, weight) {
+get_parameters <- function(data_i, formula) {
         dep_var <- all.vars(formula[[2]])
         indep_vars <- all.vars(formula[[3]])
 
         X <- stats::model.matrix(formula[c(1, 3)], data = data_i)
-        w <- data_i[[weight]]
+        w <- data_i[["weight"]]
         y <- data_i[[dep_var]]
 
         loglik_hist <- NULL
@@ -55,7 +55,7 @@ get_parameters <- function(data_i, formula, weight) {
                 beta = stats::coef(reg_mean),
                 lambda = stats::coef(reg_var))
 
-        freq <- data_i[, list(n = sum(get(weight))), by = indep_vars]
+        freq <- data_i[, list(n = sum(weight)), by = indep_vars]
         freq[, p := n / sum(n)]
 
         list(parameters = parameters, freq = freq)

@@ -9,17 +9,26 @@
 #' @import data.table
 #' @import shapley
 #' @export
-varDecomp <- function(data1, data2, formula, weight, ...) {
+varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
         setDT(data1)
         setDT(data2)
+
+        # make sure that weights are always in "weight"
+        if (is.null(weight)) {
+            data1[, weight := 1]
+            data2[, weight := 1]
+        } else if (weight != "weight") {
+            data1[, weight := get(weight)]
+            data2[, weight := get(weight)]
+        }
 
         # Getting var names
         dep_var <- all.vars(formula[[2]])
         indep_vars <- all.vars(formula[[3]])
 
         # Selecting only the necessary variables
-        data1 <- data1[, c(all.vars(formula), weight), with = FALSE]
-        data2 <- data2[, c(all.vars(formula), weight), with = FALSE]
+        data1 <- data1[, c(all.vars(formula), "weight"), with = FALSE]
+        data2 <- data2[, c(all.vars(formula), "weight"), with = FALSE]
 
         # Applying transformations to y, if needed
         data1[[dep_var]] <- data1[, eval(formula[[2]])]
@@ -57,8 +66,8 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
         }
 
         # Estimating the beta and lambda coefficients
-        model1 <- get_parameters(data1, formula, weight)
-        model2 <- get_parameters(data2, formula, weight)
+        model1 <- get_parameters(data1, formula)
+        model2 <- get_parameters(data2, formula)
 
         # parameters
         setnames(model1$parameter, c("beta", "lambda"), c("beta1", "lambda1"))
@@ -78,7 +87,7 @@ varDecomp <- function(data1, data2, formula, weight, ...) {
         # Variance Components
 
         # Basic design matrix
-        modelmatrix <- stats::model.matrix(formula[c(1,3)], data = freqs)
+        modelmatrix <- stats::model.matrix(formula[c(1, 3)], data = freqs)
 
         # group means
         freqs[, `:=`(
