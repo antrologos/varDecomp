@@ -116,8 +116,8 @@ varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
         within2 <- freqs[, sum(var2 * p2)]
         est_variance2 <- between2 + within2
 
-        obs_variance1 <- var(data1[[dep_var]])
-        obs_variance2 <- var(data2[[dep_var]])
+        obs_variance1 <- weighted.var(data1[[dep_var]], data1[["weight"]])
+        obs_variance2 <- weighted.var(data2[[dep_var]], data2[["weight"]])
 
         #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
         # Counterfactual decomposition

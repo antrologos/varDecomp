@@ -1,3 +1,10 @@
+weighted.var <- function(x, w) {
+    sumw <- sum(w)
+    sumw2 <- sum(w^2)
+    meanw <- sum(x * w) / sum(w)
+    (sumw / (sumw^2 - sumw2)) * sum(w * (x - meanw)^2)
+}
+
 # Estimates beta and lambda coefficients
 #' @import glm2
 get_parameters <- function(data_i, formula) {
