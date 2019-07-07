@@ -69,12 +69,14 @@ test_that("var: Intercept", {
 
 
 test_that("var: educr", {
-    # increase variance in college earnings without affecting the mean
+    # increase variance in college earnings for whites without affecting the mean
     wage2 <- copy(wage)
-    mean_wage <- wage2[educr == "4-year college+", mean(wage)]
+    mean_wage <- wage2[educr == "4-year college+" & racer == "White", mean(wage)]
 
-    college_above <- wage2[, which(educr == "4-year college+" & wage > mean_wage)]
-    college_below <- wage2[, which(educr == "4-year college+" & wage < mean_wage)]
+    college_above <- wage2[, which(educr == "4-year college+" & racer == "White" &
+        wage > mean_wage)]
+    college_below <- wage2[, which(educr == "4-year college+" & racer == "White" &
+        wage < mean_wage)]
 
     ix <- sample(college_above, size = 2000)
     wage2[ix, wage := wage + 4000]
@@ -84,6 +86,10 @@ test_that("var: educr", {
     # means are unchanged
     expect_equal(wage[, mean(wage), by = educr][, V1],
         wage2[, mean(wage), by = educr][, V1])
+    expect_equal(wage[, mean(wage), by = racer][, V1],
+        wage2[, mean(wage), by = racer][, V1])
+    expect_equal(wage[, mean(wage), by = .(educr, racer)][, V1],
+        wage2[, mean(wage), by = .(educr, racer)][, V1])
 
     v <- varDecomp(wage, wage2, f, silent = TRUE)
     # TODO: although the means stay identical here, we get mean effects
