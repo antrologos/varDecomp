@@ -13,7 +13,7 @@ get_parameters <- function(data_i, formula) {
 
         X <- stats::model.matrix(formula[c(1, 3)], data = data_i)
         w <- data_i[["weight"]]
-        y <- data_i[[dep_var]]
+        y <- data_i[, eval(formula[[2]])]
 
         loglik_hist <- NULL
         diff_step <- 1
