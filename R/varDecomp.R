@@ -1,161 +1,160 @@
+#' Variance decomposition
+#'
+#' @param data1 First dataset
+#' @param data2 Second dataset
+#' @param formula Model formula
+#' @param weight Weight variable
+#' @param ... Additional arguments for IPF.
+#' @return A list of decompositions
+#' @import data.table
+#' @import shapley
 #' @export
-varDecomp <- function(formula, weight, periods, data){
+varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
+        data1 <- as.data.table(data1)
+        data2 <- as.data.table(data2)
 
-        data = setDT(data)
-
-        # Getting var names
-        dep_var    = all.vars(formula[[2]])
-        indep_vars = all.vars(formula[[3]])
-
-        # Selecting only the necessary variables
-        data <- data[ , c(all.vars(formula), weight, periods), with = F]
-
-        # Applying transformations to y, if needed
-        data[[dep_var]] <- data[ , eval(formula[[2]])]
-
-        # Removing incomplete cases
-        data   <- data[complete.cases(data)]
-        finite <- is.finite(data[[dep_var]])
-        nan    <- is.nan(data[[dep_var]])
-        data   <- data[finite & !(nan)]
-        rm(finite, nan); gc()
-
-        data <- data %>%
-                arrange_at(c(periods, indep_vars)) %>%
-                setDT()
-
-        # Removing empty categories
-        for(indep_vars_i in indep_vars){
-                #print(indep_vars_i)
-
-                categories <- data[[indep_vars_i]] %>% unique() %>% sort() %>% as.character()
-
-                data[[indep_vars_i]] <- factor(data[[indep_vars_i]],
-                                               levels  = categories,
-                                               labels  = categories,
-                                               ordered = F)
-
-                data[[indep_vars_i]] <- fct_relevel(data[[indep_vars_i]], categories)
-
-                data[[indep_vars_i]] <- fct_anon(data[[indep_vars_i]]) %>%
-                        as.numeric()
+        # make sure that weights are always in "weight"
+        if (is.null(weight)) {
+            data1[, weight := 1]
+            data2[, weight := 1]
+        } else if (weight != "weight") {
+            data1[, weight := get(weight)]
+            data2[, weight := get(weight)]
         }
 
-        data <- data %>%
-                arrange_at(c(periods, indep_vars)) %>%
-                setDT()
+        # Getting var names
+        dep_var <- all.vars(formula[[2]])
+        indep_vars <- all.vars(formula[[3]])
 
-        data_split <- split(data, data[[periods]])
+        # Selecting only the necessary variables
+        data1 <- data1[, c(all.vars(formula), "weight"), with = FALSE]
+        data2 <- data2[, c(all.vars(formula), "weight"), with = FALSE]
+
+        # Applying transformations to y, if needed
+        data1[[dep_var]] <- data1[, eval(formula[[2]])]
+        data2[[dep_var]] <- data2[, eval(formula[[2]])]
+
+        # Removing incomplete cases
+        cases_before <- nrow(data1)
+        data1 <- data1[stats::complete.cases(data1)]
+        data1 <- data1[is.finite(data1[[dep_var]])]
+        cases_after <- nrow(data1)
+        if (cases_after < cases_before)
+            warning(paste0("Dropped ", cases_before - cases_after, " cases from data1"))
+        if (nrow(data1) == 0)
+            stop("data1 does not contain any rows")
+
+        cases_before <- nrow(data1)
+        data2 <- data2[stats::complete.cases(data2)]
+        data2 <- data2[is.finite(data2[[dep_var]])]
+        cases_after <- nrow(data1)
+        if (cases_after < cases_before)
+            warning(paste0("Dropped ", cases_before - cases_after, " cases from data2"))
+        if (nrow(data2) == 0)
+            stop("data2 does not contain any rows")
+
+        # # Removing empty categories
+        for (var in indep_vars) {
+                data1[[var]] <- droplevels(data1[[var]])
+                data2[[var]] <- droplevels(data2[[var]])
+
+                levels1 <- paste0(levels(data1[[var]]), collapse = "|")
+                levels2 <- paste0(levels(data2[[var]]), collapse = "|")
+
+                if (levels1 != levels2)
+                    stop(paste0("factor levels are not identical in variable ", var))
+        }
 
         # Estimating the beta and lambda coefficients
-        parameters_periods <- map(.x = data_split,
-                                  .f = varDecomp:::get_parameters,
-                                  formula = formula,
-                                  weight  = weight,
-                                  periods = periods)
+        model1 <- get_parameters(data1, formula)
+        model2 <- get_parameters(data2, formula)
 
-        betas_tmp   = map(parameters_periods, function(x) x$beta)
-        lambdas_tmp = map(parameters_periods, function(x) x$lambda)
+        # parameters
+        setnames(model1$parameter, c("beta", "lambda"), c("beta1", "lambda1"))
+        setnames(model2$parameter, c("beta", "lambda"), c("beta2", "lambda2"))
+        # sort = FALSE is important here -- otherwise the coefficients no longer line up
+        parameters <- merge(model1$parameter, model2$parameter, by = "coef", all = TRUE,
+            sort = FALSE)
+        parameters[is.na(parameters)] <- 0
 
-        names_coef = names(betas_tmp[[1]])
-
-        betas   <- do.call(rbind, lapply(1:length(betas_tmp), function(x) betas_tmp[[x]][names_coef])) %>% as.matrix() %>% t()
-        lambdas <- do.call(rbind, lapply(1:length(lambdas_tmp), function(x) lambdas_tmp[[x]][names_coef])) %>% as.matrix() %>% t()
-
-        row.names(betas) <- row.names(lambdas) <- names_coef
-        colnames(betas)  <- colnames(lambdas)  <- names(betas_tmp)
-
-        betas[is.na(betas)]     <- 0
-        lambdas[is.na(lambdas)] <- 0
-
-        #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
-
-        # Estimating the cell frequencies
-        freqs <- map_dfr(parameters_periods, function(x) x$freq)
-
-        freqs <- freqs %>%
-                arrange_at(indep_vars)
-
-        p_data <- freqs %>%
-                tidyr::unite(col = id, sep = "_", indep_vars) %>%
-                dplyr::select(-n) %>%
-                tidyr::spread(key = period, value = p) %>%
-                tidyr::separate(col = id, into = indep_vars, sep = "_") %>%
-                data.table::setDT()
+        # cell frequencies
+        setnames(model1$freq, c("n", "p"), c("n1", "p1"))
+        setnames(model2$freq, c("n", "p"), c("n2", "p2"))
+        freqs <- merge(model1$freq, model2$freq, by = indep_vars, all = TRUE)
+        freqs[is.na(freqs)] <- 0
 
         #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
         # Variance Components
 
         # Basic design matrix
-        X = model.matrix(formula[c(1,3)], data = p_data)
-        X <- X[, names_coef]
+        modelmatrix <- stats::model.matrix(formula[c(1, 3)], data = freqs)
 
-        # Cell's proportion
-        p_jt = p_data %>% dplyr::select(-indep_vars) %>% as.matrix()
-        p_jt[is.na(p_jt)] <- 0
-
-        # Group means
-        mu_jt <- X %*% betas
-
-        # Grand mean
-        mu_t   <- colSums( (X %*% betas) * p_jt )
-
-        # Group variances
-        s2_jt <- exp( X %*% lambdas)
+        # group means
+        freqs[, `:=`(
+            mu_group1 = (modelmatrix %*% parameters$beta1)[, 1],
+            mu_group2 = (modelmatrix %*% parameters$beta2)[, 1])
+        ]
+        # grand mean
+        freqs[, `:=`(
+            mu1 = sum(p1 * mu_group1),
+            mu2 = sum(p2 * mu_group2))
+        ]
+        # group variances
+        freqs[, `:=`(
+            var1 = exp(modelmatrix %*% parameters$lambda1)[, 1],
+            var2 = exp(modelmatrix %*% parameters$lambda2)[, 1])
+        ]
 
         #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
         # Estimating the actual/observed variance from the components
 
-        # Between groups component
-        between = colSums( ( (t(t(mu_jt)-mu_t))^2) * p_jt )
+        between1 <- freqs[, sum((mu_group1 - mu1)^2 * p1)]
+        within1 <- freqs[, sum(var1 * p1)]
+        est_variance1 <- between1 + within1
 
-        # Within groups component
-        within  = colSums( s2_jt * p_jt )
+        between2 <- freqs[, sum((mu_group2 - mu2)^2 * p2)]
+        within2 <- freqs[, sum(var2 * p2)]
+        est_variance2 <- between2 + within2
 
-        # Variance
-        estimated_Var <- between + within
+        obs_variance1 <- weighted.var(data1[[dep_var]], data1[["weight"]])
+        obs_variance2 <- weighted.var(data2[[dep_var]], data2[["weight"]])
 
         #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
-        #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
-        # BEGINNIG OF THE COUNTERFACTUAL DECOMPOSITION
+        # Counterfactual decomposition
 
-        p_data <- p_data %>%
-                mutate_all(function(x) {
-                        x[is.na(x)] <- 0
-                        x}
-                )
+        factors_simple <- c("mean", "var", "comp")
+        decomposition_simple <- shapley(counterfactuals_simple,
+                                 factors_simple,
+                                 freqs = freqs, silent = TRUE)
+        stopifnot(all.equal(sum(decomposition_simple$value),
+            est_variance2 - est_variance1))
 
-        factors <- list(meanEffect = paste0("meanEffect_", indep_vars),
-                        varEffect  = c("varEffect_Intercept", paste0("varEffect_", indep_vars)),
-                        compEffect = c("compEffect_association", paste0("compEffect_", indep_vars)))
+        factors <- list(
+            mean = paste0("mean_", indep_vars),
+            var  = c("var_Intercept", paste0("var_", indep_vars)),
+            comp = c("comp_association", paste0("comp_", indep_vars)))
 
+        decomposition <- shapley(counterfactuals,
+                                 factors,
+                                 indep_vars = indep_vars,
+                                 parameters = parameters,
+                                 freqs = freqs,
+                                 modelmatrix = modelmatrix, ...)
+        setDT(decomposition)
+        factors <- str_split_fixed(decomposition$factor, "_", n = 2)
+        decomposition[, group := factors[, 1]]
+        decomposition[, factor := factors[, 2]]
+        decomposition[, group_value := sum(value), by = "group"]
 
-        period_names <- names(p_data)[!names(p_data) %in% indep_vars]
+        stopifnot(all.equal(decomposition[, sum(value), by = "group"][, V1],
+            decomposition_simple$value))
 
-        if(!any(c("multiprocess", "multicore", "multisession", "cluster") %in% class(plan()))){
-                plan(multiprocess)
-        }
-        decomposition <- future_map(.x = 1:ncol(betas),
-                                    .f = function(t){
-                                            decomp_t <- shapley(vfun = varDecomp:::counterfactuals,
-                                                                factors,
-                                                                t       = t,
-                                                                betas   = betas,
-                                                                lambdas = lambdas,
-                                                                p_data  = p_data,
-                                                                indep_vars = indep_vars,
-                                                                X       = X)
-
-                                            decomp_t$group <- period_names[t]
-                                            decomp_t
-                                    },
-                                    .progress = T,
-                                    .options  = future_options(packages = c("stringr",
-                                                                            "data.table",
-                                                                            "dplyr")))
-
-        decomposition <- do.call(bind_rows, decomposition)
-
-        list(staticDecomposition  = tibble(periods = period_names, estimated_Var, between, within),
-             dynamicDecomposition = decomposition)
+        list(static = data.table(dataset = c("1", "2", "diff"),
+                est_variance = c(est_variance1, est_variance2,
+                    est_variance2 - est_variance1),
+                est_between = c(between1, between2, between2 - between1),
+                est_within = c(within1, within2, within2 - within1),
+                obs_variance = c(obs_variance1, obs_variance2,
+                    obs_variance2 - obs_variance1)),
+             dynamic = decomposition)
 }
