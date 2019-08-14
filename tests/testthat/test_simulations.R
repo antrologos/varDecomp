@@ -21,13 +21,14 @@ test_that("no change", {
 test_that("mean effect: educr", {
     # increase college premium
     wage2 <- copy(wage)
-    wage2[educr == "4-year college+", wage := 1.5 * wage]
+    wage2[educr == "4-year college+", wage := 10 * wage]
     v <- varDecomp(wage, wage2, f, silent = TRUE)
 
     # static and dynamic match
     expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
     # change is only explained by mean educr effect, i.e. all others are 0
-    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "educr", value])
+    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "educr", value],
+                 tolerance = .0005)
 })
 
 
@@ -40,7 +41,8 @@ test_that("mean effect: racer", {
     # static and dynamic match
     expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
     # change is only explained by mean racer effect, i.e. all others are 0
-    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "racer", value])
+    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "racer", value],
+                 tolerance = .0005)
 })
 
 
