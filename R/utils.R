@@ -76,7 +76,7 @@ counterfactual_p <- function(freqs,
                              association_effect,
                              max_iterations = 100,
                              zeros_replacement = 1e-6,
-                             precision = .01) {
+                             precision = .001) {
 
         if (length(adjust_vars) == 0 & association_effect == FALSE) {
             return(freqs[["p1"]])
