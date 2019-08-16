@@ -19,6 +19,7 @@ set.seed(2353454)
 ```{r setup}
 library("varDecomp")
 library("data.table")
+library("microbenchmark")
 
 data(wage)
 wage <- wage[wage$wage > 5000, ]

@@ -13,12 +13,13 @@ Authors@R: c(
            role = c("aut"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
            )
-Depends: R (>= 3.4.4),
+Depends: R (>= 3.4.0),
          data.table,
          stringr,
          shapley,
          glm2,
          memoise
+Remotes: elbersb/shapley
 Description: What the package does (one paragraph).
 License: MIT + file LICENSE
 Encoding: UTF-8
@@ -27,5 +28,6 @@ RoxygenNote: 6.1.1
 Suggests: 
     testthat,
     knitr,
-    rmarkdown
+    rmarkdown,
+    microbenchmark
 VignetteBuilder: knitr
