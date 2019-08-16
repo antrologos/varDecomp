@@ -74,9 +74,9 @@ counterfactual_p <- function(freqs,
                              adjust_vars,
                              indep_vars,
                              association_effect,
-                             max_iterations = 100,
-                             zeros_replacement = 1e-6,
-                             precision = .0001) {
+                             max_iterations = 500,
+                             zeros_replacement = 1e-10,
+                             precision = 1e-8) {
 
         if (all(freqs[, p1 == p2])) {
             return(freqs[["p1"]])
@@ -91,26 +91,24 @@ counterfactual_p <- function(freqs,
         ipf <- freqs[, ..vars]
         ipf[p1 == 0, p1 := zeros_replacement]
         ipf[p2 == 0, p2 := zeros_replacement]
+        ipf[, p1 := p1 / sum(p1)]
+        ipf[, p2 := p2 / sum(p2)]
+
+        if (association_effect == TRUE) {
+            ipf[, p := p2]
+        } else {
+            ipf[, p := p1]
+        }
 
         # find s (source) and t (target) margins
         for (var in indep_vars) {
-            ipf[, paste0("s_margin_", var) := sum(p1), by = var]
+            ipf[, paste0("s_margin_", var) := sum(p), by = var]
 
             if (var %in% adjust_vars) {
                 ipf[, paste0("t_margin_", var) := sum(p2), by = var]
             } else {
                 ipf[, paste0("t_margin_", var) := sum(p1), by = var]
             }
-        }
-
-        if (association_effect == TRUE) {
-            # drop p1, rename p2 to p
-            ipf[, p1 := NULL]
-            setnames(ipf, "p2", "p")
-        } else {
-            # drop p2, rename p1 to p
-            ipf[, p2 := NULL]
-            setnames(ipf, "p1", "p")
         }
 
         converged <- FALSE
@@ -141,6 +139,10 @@ counterfactual_p <- function(freqs,
                 converged <- TRUE
                 break
             }
+        }
+
+        if (!converged) {
+            warning("IPF did not converge, increase max_iterations or lower precision")
         }
 
         ipf$p
