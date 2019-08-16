@@ -168,7 +168,8 @@ counterfactuals_simple <- function(factors, freqs) {
 
 # Counterfactual function for the Shapley decomposition
 #' @import stringr
-counterfactuals <- function(factors, indep_vars, parameters, freqs, modelmatrix, ...) {
+counterfactuals <- function(factors, indep_vars, parameters, freqs, modelmatrix,
+                            mf_counterfactual_p, ...) {
 
         if (any(str_detect(factors, "^mean_"))) {
                 factors_mean <- factors[str_detect(factors, "^mean_")]
@@ -196,11 +197,10 @@ counterfactuals <- function(factors, indep_vars, parameters, freqs, modelmatrix,
                 factors_comp <- factors[str_detect(factors, "^comp_")]
                 factors_comp <- str_remove_all(factors_comp, "^comp_")
 
-                # TODO: these results should potentially be cached
-                p <- counterfactual_p(freqs = freqs,
-                                      adjust_vars = factors_comp[factors_comp != "association"],
-                                      indep_vars = indep_vars,
-                                      association_effect = "association" %in% factors_comp, ...)
+                p <- mf_counterfactual_p(freqs = freqs,
+                                         adjust_vars = factors_comp[factors_comp != "association"],
+                                         indep_vars = indep_vars,
+                                         association_effect = "association" %in% factors_comp, ...)
         } else {
                 p <- freqs[["p1"]]
         }

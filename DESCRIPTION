@@ -17,7 +17,8 @@ Depends: R (>= 3.4.4),
          data.table,
          stringr,
          shapley,
-         glm2
+         glm2,
+         memoise
 Description: What the package does (one paragraph).
 License: What license it uses
 Encoding: UTF-8

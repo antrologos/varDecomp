@@ -3,5 +3,6 @@
 export(varDecomp)
 import(data.table)
 import(glm2)
+import(memoise)
 import(shapley)
 import(stringr)

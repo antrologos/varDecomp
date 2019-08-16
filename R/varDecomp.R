@@ -8,6 +8,7 @@
 #' @return A list of decompositions
 #' @import data.table
 #' @import shapley
+#' @import memoise
 #' @export
 varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
         data1 <- as.data.table(data1)
@@ -134,12 +135,17 @@ varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
             var  = c("var_Intercept", paste0("var_", indep_vars)),
             comp = c("comp_association", paste0("comp_", indep_vars)))
 
+        # cache IPF results
+        mf_counterfactual_p <- memoise::memoise(counterfactual_p)
         decomposition <- shapley(counterfactuals,
                                  factors,
                                  indep_vars = indep_vars,
                                  parameters = parameters,
                                  freqs = freqs,
-                                 modelmatrix = modelmatrix, ...)
+                                 modelmatrix = modelmatrix,
+                                 mf_counterfactual_p = mf_counterfactual_p, ...)
+        memoise::forget(mf_counterfactual_p)
+
         setDT(decomposition)
         factors <- str_split_fixed(decomposition$factor, "_", n = 2)
         decomposition[, group := factors[, 1]]
