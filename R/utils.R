@@ -13,7 +13,7 @@ get_parameters <- function(data_i, formula) {
 
         X <- stats::model.matrix(formula[c(1, 3)], data = data_i)
         w <- data_i[["weight"]]
-        y <- data_i[, eval(formula[[2]])]
+        y <- data_i[[dep_var]]
 
         loglik_hist <- NULL
         diff_step <- 1
@@ -121,7 +121,10 @@ counterfactual_p <- function(freqs,
                 s <- paste0("s_margin_", var)
                 ipf[, p := p * get(t) / get(s)]
                 ipf[, p := p / sum(p)]
-                # and update source
+            }
+
+            # update all margins
+            for (var in indep_vars) {
                 ipf[, paste0("s_margin_", var) := sum(p), by = var]
             }
 
@@ -192,6 +195,7 @@ counterfactuals <- function(factors, indep_vars, parameters, freqs, modelmatrix,
                 factors_comp <- factors[str_detect(factors, "^comp_")]
                 factors_comp <- str_remove_all(factors_comp, "^comp_")
 
+                # TODO: these results should potentially be cached
                 p <- counterfactual_p(freqs = freqs,
                                       adjust_vars = factors_comp[factors_comp != "association"],
                                       indep_vars = indep_vars,
