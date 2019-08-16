@@ -76,7 +76,7 @@ counterfactual_p <- function(freqs,
                              association_effect,
                              max_iterations = 100,
                              zeros_replacement = 1e-6,
-                             precision = .001) {
+                             precision = .0001) {
 
         if (length(adjust_vars) == 0 & association_effect == FALSE) {
             return(freqs[["p1"]])
@@ -111,7 +111,6 @@ counterfactual_p <- function(freqs,
             setnames(ipf, "p1", "p")
         }
 
-        precision <- abs(log(1 / (1 + precision)))
         converged <- FALSE
 
         for (i in 1:max_iterations) {
@@ -132,7 +131,7 @@ counterfactual_p <- function(freqs,
             ratios <- sapply(indep_vars, function(var) {
                 t <- paste0("t_margin_", var)
                 s <- paste0("s_margin_", var)
-                ratio <- ipf[, list(first(get(s)), first(get(t))), by = var][, abs(log(V1 / V2))]
+                ratio <- ipf[, list(first(get(s)), first(get(t))), by = var][, abs(V1 - V2)]
                 all(ratio <= precision)
             })
 

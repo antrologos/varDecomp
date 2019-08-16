@@ -11,7 +11,7 @@ f <- log(wage) ~ racer + educr
 
 test_that("no change", {
     wage2 <- copy(wage)
-    v <- varDecomp(wage, wage2, f, silent = TRUE)
+    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
 
     expect_equal(v$static$est_variance[[3]], 0)
     expect_equal(sum(v$dynamic$value), 0)
@@ -22,13 +22,12 @@ test_that("mean effect: educr", {
     # increase college premium
     wage2 <- copy(wage)
     wage2[educr == "4-year college+", wage := 10 * wage]
-    v <- varDecomp(wage, wage2, f, silent = TRUE)
+    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
 
     # static and dynamic match
     expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
     # change is only explained by mean educr effect, i.e. all others are 0
-    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "educr", value],
-                 tolerance = .0005)
+    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "educr", value])
 })
 
 
@@ -36,13 +35,12 @@ test_that("mean effect: racer", {
     # wage penalty for blacks
     wage2 <- copy(wage)
     wage2[racer == "Black", wage := .8 * wage]
-    v <- varDecomp(wage, wage2, f, silent = TRUE)
+    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
 
     # static and dynamic match
     expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
     # change is only explained by mean racer effect, i.e. all others are 0
-    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "racer", value],
-                 tolerance = .0005)
+    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "racer", value])
 })
 
 
@@ -64,7 +62,7 @@ test_that("var: Intercept", {
     # means are unchanged
     expect_equal(mean_wage, wage2[, mean(wage)])
 
-    v <- varDecomp(wage, wage2, f, silent = TRUE)
+    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
     # TODO: this produces relatively large effects for mean_educr and var_educr ?
     expect_gt(0, 1) # fail test
 })
@@ -93,8 +91,8 @@ test_that("var: educr", {
     expect_equal(wage[, mean(wage), by = .(educr, racer)][, V1],
         wage2[, mean(wage), by = .(educr, racer)][, V1])
 
-    v <- varDecomp(wage, wage2, f, silent = TRUE)
-    # TODO: although the means stay identical here, we get mean effects
+    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
+    # TODO: although the means stay identical here, we get mean effects -- but they are very small
     expect_gt(0, 1) # fail test
 })
 
@@ -105,7 +103,7 @@ test_that("comp: educr", {
     wage2 <- copy(wage)
     wage2[educr == "4-year college+", wt := 2]
 
-    v <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE)
+    v <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-11)
 
     # static and dynamic match
     expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
@@ -121,7 +119,7 @@ test_that("comp: racer", {
     wage2 <- copy(wage)
     wage2[racer == "Black", wt := 5]
 
-    v <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE)
+    v <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-11)
 
     # static and dynamic match
     expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
