@@ -1,0 +1,60 @@
+---
+title: "benchmark"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{benchmark}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+set.seed(2353454)
+```
+
+```{r setup}
+library("varDecomp")
+library("data.table")
+
+data(wage)
+wage <- wage[wage$wage > 5000, ]
+setDT(wage)
+f <- log(wage) ~ racer + educr
+```
+
+# Simple benchmark
+
+```{r}
+wage2 <- copy(wage)
+
+microbenchmark::microbenchmark({
+    varDecomp(wage, wage2, f, silent = TRUE, precision = .001)
+}, times = 10)
+
+microbenchmark::microbenchmark({
+    varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
+}, times = 10)
+```
+
+# Complex benchmark with IPF
+
+```{r}
+wage[, wt := 1]
+wage2 <- copy(wage)
+wage2[educr == "4-year college+", wt := 2]
+
+microbenchmark::microbenchmark({
+    varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = .001)
+}, times = 10)
+
+microbenchmark::microbenchmark({
+    varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-11)
+}, times = 10)
+
+```
+
+
