@@ -78,7 +78,9 @@ counterfactual_p <- function(freqs,
                              zeros_replacement = 1e-6,
                              precision = .0001) {
 
-        if (length(adjust_vars) == 0 & association_effect == FALSE) {
+        if (all(freqs[, p1 == p2])) {
+            return(freqs[["p1"]])
+        } else if (length(adjust_vars) == 0 & association_effect == FALSE) {
             return(freqs[["p1"]])
         } else if (length(adjust_vars) == length(indep_vars) & association_effect == TRUE) {
             return(freqs[["p2"]])
