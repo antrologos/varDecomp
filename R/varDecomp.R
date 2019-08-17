@@ -134,7 +134,6 @@ varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
         mean = paste0("mean_", indep_vars),
         var  = c("var_Intercept", paste0("var_", indep_vars)),
         comp = c("comp_association", paste0("comp_", indep_vars)))
-    print(factors)
 
     # cache IPF results
     mf_counterfactual_p <- memoise::memoise(counterfactual_p)

@@ -29,12 +29,12 @@ get_parameters <- function(data_i, formula) {
                           control = list(maxit = 1000))
     coef_start <- reg_var$coefficients
 
-    # Iterarative MLE  (from Western & Bloome, 2009)
-    while (diff_step > 1e-12){
+    # Iterarative MLE (from Western & Bloome, 2009)
+    while (diff_step > 1e-12) {
         # Step 2 - Gamma regression for the variance
         reg_var <- glm2::glm.fit2(x = X, y = e2, weights = w,
                               family = stats::Gamma(link = "log"),
-                              start  = coef_start,
+                              start = coef_start,
                               control = list(maxit = 1000))
         coef_start <- reg_var$coefficients
         sigma_hat <- reg_var$fitted.values
@@ -50,9 +50,8 @@ get_parameters <- function(data_i, formula) {
         loglik_hist <- c(loglik_hist, loglik)
 
         iteration_count <- iteration_count + 1
-        #print(iteration_count)
-        if (iteration_count == 1){
-                next
+        if (iteration_count == 1) {
+            next
         }
 
         diff_step <- last(diff(loglik_hist))
