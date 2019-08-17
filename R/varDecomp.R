@@ -64,6 +64,11 @@ varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
 
         if (levels1 != levels2)
             stop(paste0("factor levels are not identical in variable ", var))
+
+        # apply contrast coding
+        n_levels <- length(levels(data1[[var]]))
+        contrasts(data1[[var]]) <- contr.sum(n_levels)
+        contrasts(data2[[var]]) <- contr.sum(n_levels)
     }
 
     # Estimating the beta and lambda coefficients
