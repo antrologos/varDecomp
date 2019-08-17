@@ -9,30 +9,8 @@ setDT(wage)
 wage <- wage[wage > 5000]
 f <- log(wage) ~ racer + educr
 
-test_that("symmetric", {
-    wage1 <- wage[sample(.N, 2000), ]
-    wage2 <- wage[sample(.N, 2000), ]
-    f <- log(wage) ~ racer + educr
-
-    v1 <- varDecomp(wage1, wage2, f, silent = TRUE, precision = 1e-11)
-    v2 <- varDecomp(wage2, wage1, f, silent = TRUE, precision = 1e-11)
-
-    expect_equal(
-        v1$static[1, est_variance:obs_variance],
-        v2$static[2, est_variance:obs_variance])
-    expect_equal(
-        v1$static[2, est_variance:obs_variance],
-        v2$static[1, est_variance:obs_variance])
-    expect_equal(
-        v1$static[3, est_variance:obs_variance],
-        -v2$static[3, est_variance:obs_variance])
-    expect_equal(
-        v1$static[3, est_variance:obs_variance],
-        -v2$static[3, est_variance:obs_variance])
-    expect_equal(
-        v1$dynamic$value,
-        -v2$dynamic$value)
-})
+# this file tests whether its possible to manipulate each component in isolation,
+# using existing data
 
 test_that("no change", {
     wage2 <- copy(wage)
