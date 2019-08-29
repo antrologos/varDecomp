@@ -235,6 +235,47 @@ test_that("var: racer", {
 })
 
 
+test_that("comp: racer - OLD STRATEGY", {  # THIS CHUNK OF CODE IS HERE JUST FOR THE SAKE OF COMPARISON
+
+    # increase variance in earnings without affecting the mean
+
+    wage[, wt := 1]
+    wage2 <- copy(wage)
+    setDT(wage2)
+
+    wage2[racer == "Black", wt := 100]
+
+    # different margins for race
+    margin_race1 <-  wage[ , .(N = sum(wt)), by = racer]
+    margin_race2 <- wage2[ , .(N = sum(wt)), by = racer]
+    margin_race1[, p := N/sum(N)]
+    margin_race2[, p := N/sum(N)]
+    expect_false(all(round(margin_race1$p, 3) == round(margin_race2$p, 3)))
+
+    # same margins for education
+    margin_educ1 <-  wage[ , .(N = sum(wt)), by = educr]
+    margin_educ2 <- wage2[ , .(N = sum(wt)), by = educr]
+    margin_educ1[, p := N/sum(N)]
+    margin_educ2[, p := N/sum(N)]
+    expect_equal(round(margin_educ1$p, 2), round(margin_educ2$p, 2)) # ERROR
+
+    # Odds ratio (for comparison)
+    t1 =  wage[ , prop.table(questionr::wtd.table(racer, educr, weights = wt))]
+    t2 = wage2[ , prop.table(questionr::wtd.table(racer, educr, weights = wt))]
+    p1_odds <- vcd::loddsratio(t1)$coefficients
+    p2_odds <- vcd::loddsratio(t2)$coefficients
+
+    # the odds ratios are the same
+    expect_equal(p1_odds, p2_odds) # OK!!
+
+
+    v <- varDecomp(wage, wage2, f, weight = "wt", precision = 1e-14)
+    values_for_testing <- v$dynamic[group == "comp" & factor == "racer"]
+    expect_equal(values_for_testing$value, values_for_testing$group_value) # ERROR
+})
+
+
+
 test_that("comp: educr", {
 
     # Simulates new sample weights (changing the marginals of racer,
@@ -450,6 +491,47 @@ test_that("comp: racer", {
 
 })
 
+
+test_that("comp: racer - OLD STRATEGY", {
+    # increase variance in earnings without affecting the mean
+
+    wage[, wt := 1]
+    wage2 <- copy(wage)
+    setDT(wage2)
+
+    wage2[racer == "Black", wt := 50]
+
+    # different margins for race
+    margin_race1 <-  wage[ , .(N = sum(wt)), by = racer]
+    margin_race2 <- wage2[ , .(N = sum(wt)), by = racer]
+    margin_race1[, p := N/sum(N)]
+    margin_race2[, p := N/sum(N)]
+
+    expect_false(all(round(margin_race1$p, 8) == round(margin_race2$p, 8)))
+
+    # same margins for education
+    margin_educ1 <-  wage[ , .(N = sum(wt)), by = educr]
+    margin_educ2 <- wage2[ , .(N = sum(wt)), by = educr]
+    margin_educ1[, p := N/sum(N)]
+    margin_educ2[, p := N/sum(N)]
+
+    expect_equal(round(margin_educ1$p, 3), round(margin_educ2$p, 3)) # ERROR
+
+    # Odds ratio (for comparison)
+    t1 =  wage[ , prop.table(questionr::wtd.table(racer, educr, weights = wt))]
+    t2 = wage2[ , prop.table(questionr::wtd.table(racer, educr, weights = wt))]
+    p1_odds <- vcd::loddsratio(t1)$coefficients
+    p2_odds <- vcd::loddsratio(t2)$coefficients
+
+    # the odds ratios are the same
+    expect_equal(p1_odds, p2_odds) # OK!!
+
+    v <- varDecomp(wage, wage2, f, weight = "wt", precision = 1e-14)
+
+    values_for_testing <- v$dynamic[group == "comp" & factor == "racer"]
+
+    expect_equal(values_for_testing$value, values_for_testing$group_value) # ERROR
+})
 
 
 test_that("comp: association", {
