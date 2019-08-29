@@ -7,7 +7,7 @@ weighted.var <- function(x, w) {
 
 # Estimates beta and lambda coefficients
 #' @import glm2
-get_parameters <- function(data_i, formula) {
+get_parameters <- function(data_i, formula, iterative.mle) {
     dep_var <- all.vars(formula[[2]])
     indep_vars <- all.vars(formula[[3]])
 
@@ -29,33 +29,36 @@ get_parameters <- function(data_i, formula) {
                           control = list(maxit = 1000))
     coef_start <- reg_var$coefficients
 
-    # Iterarative MLE (from Western & Bloome, 2009)
-    while (diff_step > 1e-12) {
-        # Step 2 - Gamma regression for the variance
-        reg_var <- glm2::glm.fit2(x = X, y = e2, weights = w,
-                              family = stats::Gamma(link = "log"),
-                              start = coef_start,
-                              control = list(maxit = 1000))
-        coef_start <- reg_var$coefficients
-        sigma_hat <- reg_var$fitted.values
+    if(iterative.mle == T){
+        # Iterarative MLE (from Western & Bloome, 2009)
+        while (diff_step > 1e-12) {
+            # Step 2 - Gamma regression for the variance
+            reg_var <- glm2::glm.fit2(x = X, y = e2, weights = w,
+                                      family = stats::Gamma(link = "log"),
+                                      start = coef_start,
+                                      control = list(maxit = 1000))
+            coef_start <- reg_var$coefficients
+            sigma_hat <- reg_var$fitted.values
 
-        # Step 3 - WLS for the mean
-        reg_mean <- stats::lm.wfit(x = X, y = y, w = w * (1 / sigma_hat))
-        e2 <- stats::residuals(reg_mean)^2
+            # Step 3 - WLS for the mean
+            reg_mean <- stats::lm.wfit(x = X, y = y, w = w * (1 / sigma_hat))
+            e2 <- stats::residuals(reg_mean)^2
 
-        # Evatuating the log-likelihood
-        Xl <- reg_var$linear.predictors
-        loglik <- sum(-.5 * (Xl + e2 * exp(-Xl)))
+            # Evatuating the log-likelihood
+            Xl <- reg_var$linear.predictors
+            loglik <- sum(-.5 * (Xl + e2 * exp(-Xl)))
 
-        loglik_hist <- c(loglik_hist, loglik)
+            loglik_hist <- c(loglik_hist, loglik)
 
-        iteration_count <- iteration_count + 1
-        if (iteration_count == 1) {
-            next
+            iteration_count <- iteration_count + 1
+            if (iteration_count == 1) {
+                next
+            }
+
+            diff_step <- last(diff(loglik_hist))
         }
-
-        diff_step <- last(diff(loglik_hist))
     }
+
 
     parameters <- data.table(coef = names(stats::coef(reg_mean)),
             beta = stats::coef(reg_mean),

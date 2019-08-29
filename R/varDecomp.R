@@ -10,7 +10,7 @@
 #' @import shapley
 #' @import memoise
 #' @export
-varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
+varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, ...) {
     data1 <- as.data.table(data1)
     data2 <- as.data.table(data2)
 
@@ -72,8 +72,8 @@ varDecomp <- function(data1, data2, formula, weight = NULL, ...) {
     }
 
     # Estimating the beta and lambda coefficients
-    model1 <- get_parameters(data1, formula)
-    model2 <- get_parameters(data2, formula)
+    model1 <- get_parameters(data1, formula, iterative.mle)
+    model2 <- get_parameters(data2, formula, iterative.mle)
 
     # parameters
     setnames(model1$parameter, c("beta", "lambda"), c("beta1", "lambda1"))
