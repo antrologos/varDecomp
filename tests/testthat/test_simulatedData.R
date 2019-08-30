@@ -4,7 +4,7 @@ library("testthat")
 library("varDecomp")
 library("data.table")
 
-context("test_simulations")
+context("test_simulatedData")
 
 #==========================================================
 # Useful functions
