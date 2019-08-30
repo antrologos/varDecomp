@@ -8,8 +8,13 @@ weighted.var <- function(x, w) {
 # Estimates beta and lambda coefficients
 #' @import glm2
 get_parameters <- function(data_i, formula, iterative.mle) {
-    dep_var <- all.vars(formula[[2]])
+
+
+    dep_var    <- all.vars(formula[[2]])
     indep_vars <- all.vars(formula[[3]])
+
+    # Applying transformations to y, if needed
+    data_i[[dep_var]] <- data_i[, eval(formula[[2]])]
 
     X <- stats::model.matrix(formula[c(1, 3)], data = data_i)
     w <- data_i[["weight"]]

@@ -24,16 +24,13 @@ varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, .
     }
 
     # Getting var names
-    dep_var <- all.vars(formula[[2]])
+    dep_var    <- all.vars(formula[[2]])
     indep_vars <- all.vars(formula[[3]])
 
     # Selecting only the necessary variables
     data1 <- data1[, c(all.vars(formula), "weight"), with = FALSE]
     data2 <- data2[, c(all.vars(formula), "weight"), with = FALSE]
 
-    # Applying transformations to y, if needed
-    data1[[dep_var]] <- data1[, eval(formula[[2]])]
-    data2[[dep_var]] <- data2[, eval(formula[[2]])]
 
     # Removing incomplete cases
     cases_before <- nrow(data1)
@@ -45,10 +42,10 @@ varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, .
     if (nrow(data1) == 0)
         stop("data1 does not contain any rows")
 
-    cases_before <- nrow(data1)
+    cases_before <- nrow(data2)
     data2 <- data2[stats::complete.cases(data2)]
     data2 <- data2[is.finite(data2[[dep_var]])]
-    cases_after <- nrow(data1)
+    cases_after <- nrow(data2)
     if (cases_after < cases_before)
         warning(paste0("Dropped ", cases_before - cases_after, " cases from data2"))
     if (nrow(data2) == 0)
