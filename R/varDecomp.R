@@ -11,6 +11,7 @@
 #' @import memoise
 #' @export
 varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, ...) {
+
     data1 <- as.data.table(data1)
     data2 <- as.data.table(data2)
 
@@ -97,11 +98,13 @@ varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, .
         mu_group1 = (modelmatrix %*% parameters$beta1)[, 1],
         mu_group2 = (modelmatrix %*% parameters$beta2)[, 1])
     ]
+
     # grand mean
     freqs[, `:=`(
         mu1 = sum(p1 * mu_group1),
         mu2 = sum(p2 * mu_group2))
     ]
+
     # group variances
     freqs[, `:=`(
         var1 = exp(modelmatrix %*% parameters$lambda1)[, 1],
@@ -119,8 +122,8 @@ varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, .
     within2 <- freqs[, sum(var2 * p2)]
     est_variance2 <- between2 + within2
 
-    obs_variance1 <- weighted.var(data1[[dep_var]], data1[["weight"]])
-    obs_variance2 <- weighted.var(data2[[dep_var]], data2[["weight"]])
+    obs_variance1 <- data1[ , weighted.var(eval(formula[[2]]), weight)]
+    obs_variance2 <- data2[ , weighted.var(eval(formula[[2]]), weight)]
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
     # Counterfactual decomposition
