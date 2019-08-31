@@ -10,7 +10,8 @@
 #' @import shapley
 #' @import memoise
 #' @export
-varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, ...) {
+varDecomp <- function(data1, data2, formula, weight = NULL,
+                      iterative.mle = F, contrast.coding = T, ...) {
 
     data1 <- as.data.table(data1)
     data2 <- as.data.table(data2)
@@ -73,9 +74,11 @@ varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, .
             stop(paste0("factor levels are not identical in variable ", var))
 
         # apply contrast coding
-        n_levels <- length(levels(data1[[var]]))
-        contrasts(data1[[var]]) <- contr.sum(n_levels)
-        contrasts(data2[[var]]) <- contr.sum(n_levels)
+        if(contrast.coding == T){
+            n_levels <- length(levels(data1[[var]]))
+            contrasts(data1[[var]]) <- contr.sum(n_levels)
+            contrasts(data2[[var]]) <- contr.sum(n_levels)
+        }
     }
 
     # Estimating the beta and lambda coefficients
