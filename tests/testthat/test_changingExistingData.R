@@ -50,7 +50,9 @@ test_that("mean effect: racer", {
 })
 
 
+
 test_that("var: Intercept", {
+
     # increase variance in earnings without affecting the mean
 
     wage2 <- copy(wage)

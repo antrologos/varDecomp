@@ -54,6 +54,15 @@ varDecomp <- function(data1, data2, formula, weight = NULL, iterative.mle = F, .
 
     # # Removing empty categories
     for (var in indep_vars) {
+
+        if(!is.factor(data1[[var]])){
+            data1[[var]] <- as.factor(data1[[var]])
+        }
+
+        if(!is.factor(data2[[var]])){
+            data2[[var]] <- as.factor(data2[[var]])
+        }
+
         data1[[var]] <- droplevels(data1[[var]])
         data2[[var]] <- droplevels(data2[[var]])
 
