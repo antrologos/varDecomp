@@ -9,7 +9,7 @@ context("test_changingExistingData")
 data(wage)
 setDT(wage)
 wage <- wage[wage > 5000]
-f <- log(wage) ~ racer * educr
+f <- log(wage) ~ -1 + racer * educr  ######### THE INTERCEPT WAS OMITTED
 
 # this file tests whether its possible to manipulate each component in isolation,
 # using existing data
@@ -50,8 +50,7 @@ test_that("mean effect: racer", {
 })
 
 
-
-test_that("var: Intercept", {
+test_that("var: old Intercept Effect (Intercept was ommited)", {
 
     # increase variance in earnings without affecting the mean
 
@@ -106,16 +105,14 @@ test_that("var: Intercept", {
     expect_true(all(!group_vars1$V1 == group_vars2$V1))
 
     v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-15)
-    values_for_testing <- v$dynamic[factor == "Intercept"]
 
-    # TODO: this produces relatively large effects for var_racer and var_intercept
-    # Is this some how related to group composition?
-    expect_equal(values_for_testing$value, values_for_testing$group_value)
+    # All changes/effects should be due only to the variance components of race and education
+    values_for_testing <- v$dynamic[group == "var"]
 
-    # Weak version of the test (also fails)
-    expect_gt(1 - abs(values_for_testing$value/values_for_testing$group_value - 1), .95)
-
+    expect_equal(sum(values_for_testing$value[-1]), v$static$est_variance[3])
 })
+
+
 
 test_that("var: educr", {
     # increase variance in earnings without affecting the mean
@@ -135,18 +132,11 @@ test_that("var: educr", {
         group_i = groups[i, ]
 
         dataGroup <- wage2[group_i]
-        #n = nrow(dataGroup)
-
         geoMean <- dataGroup[, exp(mean(log(wage)))]
 
         above <- dataGroup[, which(wage > geoMean)]
         below <- dataGroup[, which(wage < geoMean)]
 
-        cat(" length(above) =", length(above), "\n",
-            "length(below) =", length(below), "\n",
-            "round(.1*n))  =", round(.1*n), "\n\n\n\n")
-
-        #size <- min(length(above), length(below), round(.2*n))
         size <- min(length(above), length(below))
 
         above = above[1:size]
@@ -181,85 +171,11 @@ test_that("var: educr", {
     v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
     values_for_testing <- v$dynamic[factor == "educr" & group == "var"]
 
-    # TODO: this produces relatively large effects for var_racer and var_educr
+    # TODO: this produces relatively large effects for var_racer
     # Is this some how related to group composition?
+    # THE SAME THING DOES NOT OCCUR IN THE EXAMPLE I SEND TO BEN IN SLACK
+    # (see 'Coding Schemes and Intercept Effects.R')
     expect_equal(values_for_testing$value, values_for_testing$group_value)
-})
-
-
-test_that("var: educr - Strategy 2", {
-    # increase variance in earnings without affecting the mean
-
-    wage2 <- copy(wage)
-
-    wage2_4yearCollege <- wage2[educr == "4-year college+"]
-    wage2_others       <- wage2[educr != "4-year college+"]
-
-    geoMean <- wage2_4yearCollege[ , exp(mean(log(wage)))]
-
-    above <- wage2_4yearCollege[ , which(wage > geoMean)]
-    below <- wage2_4yearCollege[ , which(wage < geoMean)]
-
-    size <- min(length(above), length(below))
-
-    set.seed(123)
-    sample_above <- sample(above, size = size, replace = F)
-    sample_below <- sample(below, size = size, replace = F)
-
-    wage2_4yearCollege[sample_above, wage := wage * 2]
-    wage2_4yearCollege[sample_below, wage := wage / 2]
-
-    wage2 = rbind(wage2_others, wage2_4yearCollege)
-
-    v <- varDecomp(wage, wage2, f, silent = TRUE, iterative.mle = F, precision = 1e-14)
-
-    # static and dynamic match
-    expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
-
-    # change is only explained by var educr effect, i.e. all others are 0
-    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "var" & factor == "educr", value])
-
-})
-
-test_that("var: educr - Strategy 3", {
-    # increase variance in earnings without affecting the mean
-
-    wage2 <- copy(wage)
-
-    wage2_4yearCollege_b <- wage2[educr == "4-year college+" & racer == "Black"]
-    wage2_4yearCollege_w <- wage2[educr == "4-year college+" & racer == "White"]
-    wage2_others       <- wage2[educr != "4-year college+"]
-
-    geoMean_b <- wage2_4yearCollege_b[ , exp(mean(log(wage)))]
-    above_b <- wage2_4yearCollege_b[ , which(wage > geoMean_b)]
-    below_b <- wage2_4yearCollege_b[ , which(wage < geoMean_b)]
-    n_b = nrow(wage2_4yearCollege_b)
-    size <- min(length(above_b), length(below_b), round(.2*n_b))
-    above_b = above_b[1:size]
-    below_b = below_b[1:size]
-    wage2_4yearCollege_b[above_b, wage := wage * 2]
-    wage2_4yearCollege_b[below_b, wage := wage / 2]
-
-    geoMean_w <- wage2_4yearCollege_w[ , exp(mean(log(wage)))]
-    above_w <- wage2_4yearCollege_w[ , which(wage > geoMean_w)]
-    below_w <- wage2_4yearCollege_w[ , which(wage < geoMean_w)]
-    n_w = nrow(wage2_4yearCollege_w)
-    size <- min(length(above_w), length(below_w), round(.2*n_w))
-    above_w = above_w[1:size]
-    below_w = below_w[1:size]
-    wage2_4yearCollege_w[above_w, wage := wage * 2]
-    wage2_4yearCollege_w[below_w, wage := wage / 2]
-
-    wage2 = rbind(wage2_others, wage2_4yearCollege_b, wage2_4yearCollege_w)
-
-    v <- varDecomp(wage, wage2, f, silent = TRUE, iterative.mle = F, precision = 1e-14)
-
-    # static and dynamic match
-    expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
-
-    # change is only explained by var educr effect, i.e. all others are 0
-    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "var" & factor == "educr", value])
-
 })
 
 
@@ -321,51 +237,10 @@ test_that("var: racer", {
     v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
     values_for_testing <- v$dynamic[factor == "racer" & group == "var"]
 
-    # TODO: this produces relatively large effects for var_racer and var_educr
+    # TODO: this produces relatively large effects for var_educr
     # Is this some how related to group composition?
     expect_equal(values_for_testing$value, values_for_testing$group_value)
 })
-
-
-test_that("comp: racer - OLD STRATEGY", {  # THIS CHUNK OF CODE IS HERE JUST FOR THE SAKE OF COMPARISON
-
-    # increase variance in earnings without affecting the mean
-
-    wage[, wt := 1]
-    wage2 <- copy(wage)
-    setDT(wage2)
-
-    wage2[racer == "Black", wt := 100]
-
-    # different margins for race
-    margin_race1 <-  wage[ , .(N = sum(wt)), by = racer]
-    margin_race2 <- wage2[ , .(N = sum(wt)), by = racer]
-    margin_race1[, p := N/sum(N)]
-    margin_race2[, p := N/sum(N)]
-    expect_false(all(round(margin_race1$p, 3) == round(margin_race2$p, 3)))
-
-    # same margins for education
-    margin_educ1 <-  wage[ , .(N = sum(wt)), by = educr]
-    margin_educ2 <- wage2[ , .(N = sum(wt)), by = educr]
-    margin_educ1[, p := N/sum(N)]
-    margin_educ2[, p := N/sum(N)]
-    expect_equal(round(margin_educ1$p, 2), round(margin_educ2$p, 2)) # ERROR
-
-    # Odds ratio (for comparison)
-    t1 =  wage[ , prop.table(questionr::wtd.table(racer, educr, weights = wt))]
-    t2 = wage2[ , prop.table(questionr::wtd.table(racer, educr, weights = wt))]
-    p1_odds <- vcd::loddsratio(t1)$coefficients
-    p2_odds <- vcd::loddsratio(t2)$coefficients
-
-    # the odds ratios are the same
-    expect_equal(p1_odds, p2_odds) # OK!!
-
-
-    v <- varDecomp(wage, wage2, f, weight = "wt", precision = 1e-14)
-    values_for_testing <- v$dynamic[group == "comp" & factor == "racer"]
-    expect_equal(values_for_testing$value, values_for_testing$group_value) # ERROR
-})
-
 
 
 test_that("comp: educr", {
@@ -585,7 +460,6 @@ test_that("comp: racer", {
 
 
 test_that("comp: racer - OLD STRATEGY", {
-    # increase variance in earnings without affecting the mean
 
     wage[, wt := 1]
     wage2 <- copy(wage)
@@ -629,7 +503,6 @@ test_that("comp: racer - OLD STRATEGY", {
 test_that("comp: association", {
 
     # Simulates new sample weights (keeping the original marginals, but changing the statistical association)
-
 
     ipf <- wage[, .N, by = c("educr", "racer")]
 
