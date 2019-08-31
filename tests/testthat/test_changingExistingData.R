@@ -9,17 +9,28 @@ context("test_changingExistingData")
 data(wage)
 setDT(wage)
 wage <- wage[wage > 5000]
-f <- log(wage) ~ -1 + racer * educr  ######### THE INTERCEPT WAS OMITTED
+f <- log(wage) ~ -1 + racer * educr  ######### THE INTERCEPT WAS OMITTED // INTERACTION TERM ADDED (without it, the composition effect is not properly disentangled)
 
 # this file tests whether its possible to manipulate each component in isolation,
 # using existing data
 
 test_that("no change", {
     wage2 <- copy(wage)
-    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
 
-    expect_equal(v$static$est_variance[[3]], 0)
-    expect_equal(sum(v$dynamic$value), 0)
+    v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = T)
+
+    values_for_testing_dummy    <-    v_dummy$dynamic[factor == "educr" & group == "var"]
+    values_for_testing_contrast <- v_contrast$dynamic[factor == "educr" & group == "var"]
+
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
+
+    expect_equal(v_dummy$static$est_variance[[3]], 0)
+    expect_equal(sum(v_dummy$dynamic$value), 0)
+
+    expect_equal(v_contrast$static$est_variance[[3]], 0)
+    expect_equal(sum(v_contrast$dynamic$value), 0)
 })
 
 
@@ -27,13 +38,20 @@ test_that("mean effect: educr", {
     # increase college premium
     wage2 <- copy(wage)
     wage2[educr == "4-year college+", wage := 10 * wage]
-    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
+
+    v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = T)
+
+    values_for_testing_dummy    <-    v_dummy$dynamic[factor == "educr" & group == "mean"]
+    values_for_testing_contrast <- v_contrast$dynamic[factor == "educr" & group == "mean"]
 
     # static and dynamic match
-    expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
+    expect_equal(v_dummy$static$est_variance[[3]], sum(v_dummy$dynamic$value))
+    expect_equal(v_contrast$static$est_variance[[3]], sum(v_contrast$dynamic$value))
 
     # change is only explained by mean educr effect, i.e. all others are 0
-    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "educr", value])
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
 })
 
 
@@ -41,12 +59,20 @@ test_that("mean effect: racer", {
     # wage penalty for blacks
     wage2 <- copy(wage)
     wage2[racer == "Black", wage := .8 * wage]
-    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
+
+    v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = T)
+
+    values_for_testing_dummy    <-    v_dummy$dynamic[factor == "racer" & group == "mean"]
+    values_for_testing_contrast <- v_contrast$dynamic[factor == "racer" & group == "mean"]
 
     # static and dynamic match
-    expect_equal(v$static$est_variance[[3]], sum(v$dynamic$value))
-    # change is only explained by mean racer effect, i.e. all others are 0
-    expect_equal(v$static$est_variance[[3]], v$dynamic[group == "mean" & factor == "racer", value])
+    expect_equal(v_dummy$static$est_variance[[3]], sum(v_dummy$dynamic$value))
+    expect_equal(v_contrast$static$est_variance[[3]], sum(v_contrast$dynamic$value))
+
+    # change is only explained by mean educr effect, i.e. all others are 0
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
 })
 
 
@@ -72,10 +98,6 @@ test_that("var: old Intercept Effect (Intercept was ommited)", {
 
         above <- dataGroup[, which(wage > geoMean)]
         below <- dataGroup[, which(wage < geoMean)]
-
-        cat(" length(above) =", length(above), "\n",
-            "length(below) =", length(below), "\n",
-            "round(.1*n))  =", round(.1*n), "\n\n\n\n")
 
         size <- min(length(above), length(below), round(.2*n))
 
@@ -113,7 +135,6 @@ test_that("var: old Intercept Effect (Intercept was ommited)", {
 })
 
 
-
 test_that("var: educr", {
     # increase variance in earnings without affecting the mean
 
@@ -132,6 +153,7 @@ test_that("var: educr", {
         group_i = groups[i, ]
 
         dataGroup <- wage2[group_i]
+
         geoMean <- dataGroup[, exp(mean(log(wage)))]
 
         above <- dataGroup[, which(wage > geoMean)]
@@ -168,14 +190,22 @@ test_that("var: educr", {
     group_vars2 <- wage2[educr != "4-year college+", var(log(wage)), by = c("racer", "educr")]
     expect_true(all(group_vars1[order(racer, educr)]$V1 == group_vars2[order(racer, educr)]$V1))
 
-    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
-    values_for_testing <- v$dynamic[factor == "educr" & group == "var"]
+    v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = T)
 
-    # TODO: this produces relatively large effects for var_racer
+    values_for_testing_dummy    <-    v_dummy$dynamic[factor == "educr" & group == "var"]
+    values_for_testing_contrast <- v_contrast$dynamic[factor == "educr" & group == "var"]
+
+    # TODO: Using contrast coding produces relatively large effects for var_racer
     # Is this some how related to group composition?
+
     # THE SAME THING DOES NOT OCCUR IN THE EXAMPLE I SEND TO BEN IN SLACK
     # (see 'Coding Schemes and Intercept Effects.R')
-    expect_equal(values_for_testing$value, values_for_testing$group_value)
+
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
+
+
 })
 
 
@@ -234,12 +264,22 @@ test_that("var: racer", {
     group_vars2 <- wage2[racer != "Black", var(log(wage)), by = c("racer", "educr")]
     expect_true(all(group_vars1[order(racer, educr)]$V1 == group_vars2[order(racer, educr)]$V1))
 
-    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11)
-    values_for_testing <- v$dynamic[factor == "racer" & group == "var"]
 
-    # TODO: this produces relatively large effects for var_educr
+    v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = T)
+
+    values_for_testing_dummy    <-    v_dummy$dynamic[factor == "racer" & group == "var"]
+    values_for_testing_contrast <- v_contrast$dynamic[factor == "racer" & group == "var"]
+
+    # TODO: Using contrast coding produces relatively large effects for var_educr
     # Is this some how related to group composition?
-    expect_equal(values_for_testing$value, values_for_testing$group_value)
+
+    # THE SAME THING DOES NOT OCCUR IN THE EXAMPLE I SEND TO BEN IN SLACK
+    # (see 'Coding Schemes and Intercept Effects.R')
+
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
+
 })
 
 
@@ -342,11 +382,15 @@ test_that("comp: educr", {
     expect_equal(vcd::loddsratio(as.matrix(t1))$coefficients, vcd::loddsratio(as.matrix(t2))$coefficients)
 
     wage$wt = 1
-    v <- varDecomp(wage, wage2, f, weight = "wt", precision = 1e-14)
 
-    values_for_testing <- v$dynamic[group == "comp" & factor == "educr"]
+    v_dummy    <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-14, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-14, contrast.coding = T)
 
-    expect_equal(values_for_testing$value, values_for_testing$group_value)
+    values_for_testing_dummy    <-    v_dummy$dynamic[factor == "educr" & group == "comp"]
+    values_for_testing_contrast <- v_contrast$dynamic[factor == "educr" & group == "comp"]
+
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
 
 })
 
@@ -450,11 +494,15 @@ test_that("comp: racer", {
     expect_equal(vcd::loddsratio(as.matrix(t1))$coefficients, vcd::loddsratio(as.matrix(t2))$coefficients)
 
     wage$wt = 1
-    v <- varDecomp(wage, wage2, f, weight = "wt", precision = 1e-14)
 
-    values_for_testing <- v$dynamic[group == "comp" & factor == "racer"]
+    v_dummy    <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-11, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-11, contrast.coding = T)
 
-    expect_equal(values_for_testing$value, values_for_testing$group_value)
+    values_for_testing_dummy    <-    v_dummy$dynamic[factor == "racer" & group == "comp"]
+    values_for_testing_contrast <- v_contrast$dynamic[factor == "racer" & group == "comp"]
+
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
 
 })
 
@@ -616,12 +664,15 @@ test_that("comp: association", {
     # the dataset wage2 must have the same odds ratio as the transformed distribution
     expect_equal(vcd::loddsratio(as.matrix(t1)), vcd::loddsratio(as.matrix(t2)))
 
-
     wage$wt = 1
-    v <- varDecomp(wage, wage2, f, weight = "wt", precision = 1e-14)
 
-    values_for_testing <- v$dynamic[factor == "association"]
+    v_dummy    <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-11, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, weight = "wt", silent = TRUE, precision = 1e-11, contrast.coding = T)
 
-    expect_equal(values_for_testing$value, values_for_testing$value)
+    values_for_testing_dummy    <-    v_dummy$dynamic[factor == "association"]
+    values_for_testing_contrast <- v_contrast$dynamic[factor == "association"]
+
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
 
 })
