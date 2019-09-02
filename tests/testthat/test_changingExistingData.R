@@ -8,7 +8,7 @@ context("test_changingExistingData")
 
 data(wage)
 setDT(wage)
-wage <- wage[wage > 5000]
+#wage <- wage[wage > 5000]
 f <- log(wage) ~ -1 + racer * educr  ######### THE INTERCEPT WAS OMITTED // INTERACTION TERM ADDED (without it, the composition effect is not properly disentangled)
 
 # this file tests whether its possible to manipulate each component in isolation,
@@ -126,12 +126,24 @@ test_that("var: old Intercept Effect (Intercept was ommited)", {
     group_vars2 <- wage2[order(racer, educr), var(log(wage)), by = c("racer", "educr")]
     expect_true(all(!group_vars1$V1 == group_vars2$V1))
 
-    v <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-15)
+    v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = T)
+
+
+    # static and dynamic match
+    expect_equal(v_dummy$static$est_variance[[3]], sum(v_dummy$dynamic$value))
+    expect_equal(v_contrast$static$est_variance[[3]], sum(v_contrast$dynamic$value))
 
     # All changes/effects should be due only to the variance components of race and education
-    values_for_testing <- v$dynamic[group == "var"]
+    values_for_testing_dummy    <-    v_dummy$dynamic[group == "var"]
+    values_for_testing_contrast <- v_contrast$dynamic[group == "var"]
 
-    expect_equal(sum(values_for_testing$value[-1]), v$static$est_variance[3])
+    # change is only explained by mean educr effect, i.e. all others are 0
+    expect_equal(   sum(values_for_testing_dummy$value),    v_dummy$static$est_variance[3])
+    expect_equal(sum(values_for_testing_contrast$value), v_contrast$static$est_variance[3])
+
+    # BUT RESULTS WITH DUMMY INDICATOR CODING ARE VERY DIFFERENT FROM CONTRAST CODING:
+    expect_equal(values_for_testing_dummy$value, values_for_testing_contrast$value) # I don't know if they should be equal...
 })
 
 
@@ -139,6 +151,7 @@ test_that("var: educr", {
     # increase variance in earnings without affecting the mean
 
     wage2 <- copy(wage)
+
     setDT(wage2, key = c("educr", "racer"))
 
     groups <- expand.grid(racer = unique(wage$racer),
@@ -153,19 +166,20 @@ test_that("var: educr", {
         group_i = groups[i, ]
 
         dataGroup <- wage2[group_i]
+        n = nrow(dataGroup)
 
         geoMean <- dataGroup[, exp(mean(log(wage)))]
 
         above <- dataGroup[, which(wage > geoMean)]
         below <- dataGroup[, which(wage < geoMean)]
 
-        size <- min(length(above), length(below))
+        size <- min(length(above), length(below), round(.1*n))
 
         above = above[1:size]
         below = below[1:size]
 
-        dataGroup[above, wage := wage * 2]
-        dataGroup[below, wage := wage / 2]
+        dataGroup[above, wage := wage * 20]
+        dataGroup[below, wage := wage / 20]
 
         data_tmp = rbind(data_tmp, dataGroup)
     }
@@ -188,7 +202,7 @@ test_that("var: educr", {
 
     group_vars1 <-  wage[educr != "4-year college+", var(log(wage)), by = c("racer", "educr")]
     group_vars2 <- wage2[educr != "4-year college+", var(log(wage)), by = c("racer", "educr")]
-    expect_true(all(group_vars1[order(racer, educr)]$V1 == group_vars2[order(racer, educr)]$V1))
+    expect_equal(group_vars1[order(racer, educr)]$V1, group_vars2[order(racer, educr)]$V1)
 
     v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = F)
     v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = T)
@@ -202,7 +216,7 @@ test_that("var: educr", {
     # THE SAME THING DOES NOT OCCUR IN THE EXAMPLE I SEND TO BEN IN SLACK
     # (see 'Coding Schemes and Intercept Effects.R')
 
-    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3])
+    expect_equal(   values_for_testing_dummy$value,    v_dummy$static$est_variance[3]) #this make think dummy coding works better than contrast coding
     expect_equal(values_for_testing_contrast$value, v_contrast$static$est_variance[3])
 
 
@@ -227,19 +241,20 @@ test_that("var: racer", {
         group_i = groups[i, ]
 
         dataGroup <- wage2[group_i]
+        n = nrow(dataGroup)
 
         geoMean <- dataGroup[, exp(mean(log(wage)))]
 
         above <- dataGroup[, which(wage > geoMean)]
         below <- dataGroup[, which(wage < geoMean)]
 
-        n <- min(c(length(above), length(below)))
+        size <- min(c(length(above), length(below)), round(.1*n))
 
-        above = above[1:n]
-        below = below[1:n]
+        above = above[1:size]
+        below = below[1:size]
 
-        dataGroup[above, wage := wage * 2]
-        dataGroup[below, wage := wage / 2]
+        dataGroup[above, wage := wage * 20]
+        dataGroup[below, wage := wage / 20]
 
         data_tmp = rbind(data_tmp, dataGroup)
     }
@@ -265,8 +280,8 @@ test_that("var: racer", {
     expect_true(all(group_vars1[order(racer, educr)]$V1 == group_vars2[order(racer, educr)]$V1))
 
 
-    v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = F)
-    v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-11, contrast.coding = T)
+    v_dummy    <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-14, contrast.coding = F)
+    v_contrast <- varDecomp(wage, wage2, f, silent = TRUE, precision = 1e-14, contrast.coding = T)
 
     values_for_testing_dummy    <-    v_dummy$dynamic[factor == "racer" & group == "var"]
     values_for_testing_contrast <- v_contrast$dynamic[factor == "racer" & group == "var"]

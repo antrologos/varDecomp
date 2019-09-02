@@ -9,7 +9,6 @@ weighted.var <- function(x, w) {
 #' @import glm2
 get_parameters <- function(data_i, formula, iterative.mle) {
 
-
     dep_var    <- all.vars(formula[[2]])
     indep_vars <- all.vars(formula[[3]])
 
@@ -20,23 +19,23 @@ get_parameters <- function(data_i, formula, iterative.mle) {
     w <- data_i[["weight"]]
     y <- data_i[[dep_var]]
 
-    loglik_hist <- NULL
-    diff_step <- 1
-    iteration_count <- 0
-
     # Step 1 - OLS for the mean
-    reg_mean <- stats::lm.wfit(x = X, y = y, w = w)
-    e2 <- stats::residuals(reg_mean)^2
+    reg_mean <- stats::lm.wfit(x = X, y = y, w = w, tol = 1e-12)
+    e2       <- stats::residuals(reg_mean)^2
 
     # Getting stating values for the Gamma regression
     reg_var <- glm2::glm.fit2(x = X, y = e2, weights = w,
                           family = stats::Gamma(link = "log"),
                           control = list(maxit = 1000))
-    coef_start <- reg_var$coefficients
 
     if(iterative.mle == T){
         # Iterarative MLE (from Western & Bloome, 2009)
-        while (diff_step > 1e-12) {
+        coef_start  <- reg_var$coefficients
+        loglik_hist <- NULL
+        diff_step   <- 1
+        iteration_count <- 0
+
+        while (diff_step > 1e-14) {
             # Step 2 - Gamma regression for the variance
             reg_var <- glm2::glm.fit2(x = X, y = e2, weights = w,
                                       family = stats::Gamma(link = "log"),
@@ -46,7 +45,7 @@ get_parameters <- function(data_i, formula, iterative.mle) {
             sigma_hat <- reg_var$fitted.values
 
             # Step 3 - WLS for the mean
-            reg_mean <- stats::lm.wfit(x = X, y = y, w = w * (1 / sigma_hat))
+            reg_mean <- stats::lm.wfit(x = X, y = y, w = w * (1 / sigma_hat), tol = 1e-12)
             e2 <- stats::residuals(reg_mean)^2
 
             # Evatuating the log-likelihood
@@ -64,10 +63,9 @@ get_parameters <- function(data_i, formula, iterative.mle) {
         }
     }
 
-
-    parameters <- data.table(coef = names(stats::coef(reg_mean)),
-            beta = stats::coef(reg_mean),
-            lambda = stats::coef(reg_var))
+    parameters <- data.table(coef   = names(stats::coef(reg_mean)),
+                             beta   = stats::coef(reg_mean),
+                             lambda = stats::coef(reg_var))
 
     freq <- data_i[, list(n = sum(weight)), by = indep_vars]
     freq[, p := n / sum(n)]
@@ -81,9 +79,9 @@ counterfactual_p <- function(freqs,
                              adjust_vars,
                              indep_vars,
                              association_effect,
-                             max_iterations = 500,
+                             max_iterations = 1000,
                              zeros_replacement = 1e-10,
-                             precision = 1e-8) {
+                             precision = 1e-12) {
 
     if (all(freqs[, p1 == p2])) {
         return(freqs[["p1"]])
@@ -217,3 +215,5 @@ counterfactuals <- function(factors, indep_vars, parameters, freqs, modelmatrix,
     mu <- sum(p * mu_group)
     sum((mu_group - mu)^2 * p) + sum(var * p)
 }
+
+

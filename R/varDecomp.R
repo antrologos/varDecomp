@@ -13,8 +13,8 @@
 varDecomp <- function(data1, data2, formula, weight = NULL,
                       iterative.mle = F, contrast.coding = T, ...) {
 
-    data1 <- as.data.table(data1)
-    data2 <- as.data.table(data2)
+    data1 <- setDT(data1)
+    data2 <- setDT(data2)
 
     # make sure that weights are always in "weight"
     if (is.null(weight)) {
@@ -82,20 +82,22 @@ varDecomp <- function(data1, data2, formula, weight = NULL,
     }
 
     # Estimating the beta and lambda coefficients
-    model1 <- get_parameters(data1, formula, iterative.mle)
-    model2 <- get_parameters(data2, formula, iterative.mle)
+    model1 <- varDecomp:::get_parameters(data1, formula, iterative.mle)
+    model2 <- varDecomp:::get_parameters(data2, formula, iterative.mle)
 
     # parameters
     setnames(model1$parameter, c("beta", "lambda"), c("beta1", "lambda1"))
     setnames(model2$parameter, c("beta", "lambda"), c("beta2", "lambda2"))
+
     # sort = FALSE is important here -- otherwise the coefficients no longer line up
-    parameters <- merge(model1$parameter, model2$parameter, by = "coef", all = TRUE,
-        sort = FALSE)
+    parameters <- merge(model1$parameter, model2$parameter,
+                        by = "coef", all = TRUE, sort = FALSE)
     parameters[is.na(parameters)] <- 0
 
     # cell frequencies
     setnames(model1$freq, c("n", "p"), c("n1", "p1"))
     setnames(model2$freq, c("n", "p"), c("n2", "p2"))
+
     freqs <- merge(model1$freq, model2$freq, by = indep_vars, all = TRUE)
     freqs[is.na(freqs)] <- 0
 
@@ -141,7 +143,7 @@ varDecomp <- function(data1, data2, formula, weight = NULL,
     # Counterfactual decomposition
 
     factors_simple <- c("mean", "var", "comp")
-    decomposition_simple <- shapley(counterfactuals_simple,
+    decomposition_simple <- shapley(varDecomp:::counterfactuals_simple,
                              factors_simple,
                              freqs = freqs, silent = TRUE)
     stopifnot(all.equal(sum(decomposition_simple$value),
@@ -153,8 +155,8 @@ varDecomp <- function(data1, data2, formula, weight = NULL,
         comp = c("comp_association", paste0("comp_", indep_vars)))
 
     # cache IPF results
-    mf_counterfactual_p <- memoise::memoise(counterfactual_p)
-    decomposition <- shapley(counterfactuals,
+    mf_counterfactual_p <- memoise::memoise(varDecomp:::counterfactual_p)
+    decomposition <- shapley(varDecomp:::counterfactuals,
                              factors,
                              indep_vars = indep_vars,
                              parameters = parameters,
